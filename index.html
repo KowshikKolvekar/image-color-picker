@@ -4,64 +4,56 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Image Color Picker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 1rem;
-      background: #f9f9f9;
-      color: #333;
+    #magnifier {
+      position: absolute;
+      border: 2px solid #333;
+      border-radius: 50%;
+      width: 100px;
+      height: 100px;
+      overflow: hidden;
+      pointer-events: none;
+      display: none;
+      z-index: 10;
     }
-    .container {
-      max-width: 800px;
-      margin: 0 auto;
-    }
-    .upload-area {
-      border: 2px dashed #ccc;
-      padding: 2rem;
-      text-align: center;
-      margin-bottom: 1rem;
-      background: #fff;
-    }
-    canvas {
-      max-width: 100%;
-      display: block;
-      margin: 1rem 0;
-    }
-    .color-info {
-      display: flex;
-      gap: 1rem;
-      align-items: center;
-    }
-    .color-preview {
-      width: 50px;
-      height: 50px;
-      border: 1px solid #ccc;
-    }
-    .color-values input {
-      width: 200px;
-      margin-bottom: 0.5rem;
+    #magnifier canvas {
+      position: absolute;
+      transform: scale(3);
+      transform-origin: top left;
     }
   </style>
 </head>
-<body>
-  <div class="container">
-    <h1>Image Color Picker</h1>
-    <div class="upload-area" id="uploadArea">
-      <p>Click or drag to upload an image</p>
-      <input type="file" id="imageInput" accept="image/*" hidden />
-      <button onclick="document.getElementById('imageInput').click()">Upload Image</button>
-      <input type="text" id="urlInput" placeholder="Or enter image URL" style="width: 100%; margin-top: 1rem;"/>
-      <button onclick="loadImageFromURL()">Load from URL</button>
+<body class="bg-gray-100 min-h-screen">
+  <div class="max-w-4xl mx-auto p-6">
+    <h1 class="text-3xl font-bold text-center mb-6">Image Color Picker</h1>
+    <div class="bg-white p-6 rounded shadow mb-6">
+      <div class="flex flex-col gap-4">
+        <input type="file" id="imageInput" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
+        <div class="flex gap-2">
+          <input type="text" id="urlInput" placeholder="Enter image URL..." class="flex-grow p-2 border rounded"/>
+          <button onclick="loadImageFromURL()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Load</button>
+        </div>
+        <p class="text-sm text-gray-400">Or paste an image from clipboard (Ctrl+V)</p>
+      </div>
     </div>
 
-    <canvas id="canvas"></canvas>
-    <div class="color-info" id="colorInfo" style="display: none;">
-      <div class="color-preview" id="colorPreview"></div>
-      <div class="color-values">
-        <input id="hexValue" readonly />
-        <input id="rgbValue" readonly />
+    <div class="relative">
+      <canvas id="canvas" class="w-full border border-gray-300 rounded"></canvas>
+      <div id="magnifier"><canvas></canvas></div>
+    </div>
+
+    <div id="colorInfo" class="mt-6 hidden bg-white p-4 rounded shadow flex items-center gap-4">
+      <div id="colorPreview" class="w-16 h-16 border"></div>
+      <div>
+        <p><strong>HEX:</strong> <input id="hexValue" class="border px-2 py-1 w-40" readonly /></p>
+        <p><strong>RGB:</strong> <input id="rgbValue" class="border px-2 py-1 w-40" readonly /></p>
       </div>
+    </div>
+
+    <div id="history" class="mt-6 hidden">
+      <h2 class="text-xl font-semibold mb-2">Color History</h2>
+      <div id="historyList" class="flex flex-wrap gap-2"></div>
     </div>
   </div>
 
@@ -74,8 +66,15 @@
     const colorPreview = document.getElementById("colorPreview");
     const hexValue = document.getElementById("hexValue");
     const rgbValue = document.getElementById("rgbValue");
+    const magnifier = document.getElementById("magnifier");
+    const magnifierCanvas = magnifier.querySelector("canvas");
+    const magnifierCtx = magnifierCanvas.getContext("2d");
+    const historyList = document.getElementById("historyList");
+    const historyContainer = document.getElementById("history");
 
     let img = new Image();
+    magnifierCanvas.width = 100;
+    magnifierCanvas.height = 100;
 
     imageInput.addEventListener("change", (e) => {
       const file = e.target.files[0];
@@ -104,6 +103,23 @@
       img.src = src;
     }
 
+    canvas.addEventListener("mousemove", (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      if (img.src) {
+        magnifier.style.display = "block";
+        magnifier.style.left = `${e.pageX + 20}px`;
+        magnifier.style.top = `${e.pageY - 60}px`;
+        magnifierCtx.clearRect(0, 0, 100, 100);
+        magnifierCtx.drawImage(canvas, x - 17, y - 17, 34, 34, 0, 0, 100, 100);
+      }
+    });
+
+    canvas.addEventListener("mouseleave", () => {
+      magnifier.style.display = "none";
+    });
+
     canvas.addEventListener("click", (e) => {
       const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
@@ -115,13 +131,36 @@
       colorPreview.style.background = hex;
       hexValue.value = hex;
       rgbValue.value = rgb;
-      colorInfo.style.display = "flex";
+      colorInfo.classList.remove("hidden");
+      addToHistory(hex);
     });
 
     function rgbToHex(r, g, b) {
       return (
         "#" + [r, g, b].map((x) => x.toString(16).padStart(2, "0")).join("")
       );
+    }
+
+    function addToHistory(hex) {
+      const colorBox = document.createElement("div");
+      colorBox.className = "w-10 h-10 border cursor-pointer";
+      colorBox.style.background = hex;
+      colorBox.title = hex;
+      colorBox.onclick = () => {
+        colorPreview.style.background = hex;
+        hexValue.value = hex;
+        rgbValue.value = hexToRgb(hex);
+      };
+      historyList.appendChild(colorBox);
+      historyContainer.classList.remove("hidden");
+    }
+
+    function hexToRgb(hex) {
+      const bigint = parseInt(hex.slice(1), 16);
+      const r = (bigint >> 16) & 255;
+      const g = (bigint >> 8) & 255;
+      const b = bigint & 255;
+      return `rgb(${r}, ${g}, ${b})`;
     }
 
     // Paste image from clipboard
