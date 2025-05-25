@@ -1,93 +1,141 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Image Color Picker</title>
   <style>
     body {
       font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 1rem;
+      background: #f9f9f9;
+      color: #333;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .upload-area {
+      border: 2px dashed #ccc;
+      padding: 2rem;
       text-align: center;
-      padding: 30px;
-      background-color: #f5f5f5;
+      margin-bottom: 1rem;
+      background: #fff;
     }
-
-    input[type="file"] {
-      margin: 20px 0;
-    }
-
     canvas {
       max-width: 100%;
+      display: block;
+      margin: 1rem 0;
+    }
+    .color-info {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+    .color-preview {
+      width: 50px;
+      height: 50px;
       border: 1px solid #ccc;
-      cursor: crosshair;
     }
-
-    #colorDisplay {
-      margin-top: 20px;
-      font-size: 1.2em;
-    }
-
-    .color-box {
-      display: inline-block;
-      width: 30px;
-      height: 30px;
-      border: 1px solid #000;
-      vertical-align: middle;
-      margin-right: 10px;
+    .color-values input {
+      width: 200px;
+      margin-bottom: 0.5rem;
     }
   </style>
 </head>
 <body>
+  <div class="container">
+    <h1>Image Color Picker</h1>
+    <div class="upload-area" id="uploadArea">
+      <p>Click or drag to upload an image</p>
+      <input type="file" id="imageInput" accept="image/*" hidden />
+      <button onclick="document.getElementById('imageInput').click()">Upload Image</button>
+      <input type="text" id="urlInput" placeholder="Or enter image URL" style="width: 100%; margin-top: 1rem;"/>
+      <button onclick="loadImageFromURL()">Load from URL</button>
+    </div>
 
-  <h1>Image Color Picker</h1>
-  <input type="file" id="imageLoader" accept="image/*" />
-  <br />
-  <canvas id="imageCanvas"></canvas>
-  <div id="colorDisplay">
-    <div class="color-box" id="colorBox"></div>
-    <span id="colorCode">Click on the image to get the color</span>
+    <canvas id="canvas"></canvas>
+    <div class="color-info" id="colorInfo" style="display: none;">
+      <div class="color-preview" id="colorPreview"></div>
+      <div class="color-values">
+        <input id="hexValue" readonly />
+        <input id="rgbValue" readonly />
+      </div>
+    </div>
   </div>
 
   <script>
-    const imageLoader = document.getElementById('imageLoader');
-    const canvas = document.getElementById('imageCanvas');
-    const ctx = canvas.getContext('2d');
-    const colorBox = document.getElementById('colorBox');
-    const colorCode = document.getElementById('colorCode');
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const imageInput = document.getElementById("imageInput");
+    const urlInput = document.getElementById("urlInput");
+    const colorInfo = document.getElementById("colorInfo");
+    const colorPreview = document.getElementById("colorPreview");
+    const hexValue = document.getElementById("hexValue");
+    const rgbValue = document.getElementById("rgbValue");
 
-    imageLoader.addEventListener('change', handleImage, false);
+    let img = new Image();
 
-    function handleImage(e) {
-      const reader = new FileReader();
-      reader.onload = function (event) {
-        const img = new Image();
-        img.onload = function () {
-          canvas.width = img.width;
-          canvas.height = img.height;
-          ctx.drawImage(img, 0, 0);
+    imageInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          loadImage(evt.target.result);
         };
-        img.src = event.target.result;
-      };
-      reader.readAsDataURL(e.target.files[0]);
+        reader.readAsDataURL(file);
+      }
+    });
+
+    function loadImageFromURL() {
+      const url = urlInput.value;
+      if (url) loadImage(url);
     }
 
-    canvas.addEventListener('click', function (e) {
+    function loadImage(src) {
+      img = new Image();
+      img.crossOrigin = "Anonymous";
+      img.onload = () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+      };
+      img.src = src;
+    }
+
+    canvas.addEventListener("click", (e) => {
       const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       const pixel = ctx.getImageData(x, y, 1, 1).data;
       const rgb = `rgb(${pixel[0]}, ${pixel[1]}, ${pixel[2]})`;
       const hex = rgbToHex(pixel[0], pixel[1], pixel[2]);
-      colorBox.style.backgroundColor = hex;
-      colorCode.textContent = `${hex.toUpperCase()} (${rgb})`;
+
+      colorPreview.style.background = hex;
+      hexValue.value = hex;
+      rgbValue.value = rgb;
+      colorInfo.style.display = "flex";
     });
 
     function rgbToHex(r, g, b) {
-      return "#" + [r, g, b].map(x => {
-        const hex = x.toString(16);
-        return hex.length === 1 ? "0" + hex : hex;
-      }).join('');
+      return (
+        "#" + [r, g, b].map((x) => x.toString(16).padStart(2, "0")).join("")
+      );
     }
-  </script>
 
+    // Paste image from clipboard
+    window.addEventListener("paste", (e) => {
+      const items = e.clipboardData.items;
+      for (let item of items) {
+        if (item.type.indexOf("image") !== -1) {
+          const blob = item.getAsFile();
+          const reader = new FileReader();
+          reader.onload = (evt) => loadImage(evt.target.result);
+          reader.readAsDataURL(blob);
+        }
+      }
+    });
+  </script>
 </body>
 </html>
