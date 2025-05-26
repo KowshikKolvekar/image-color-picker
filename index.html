@@ -2,40 +2,85 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Image Color Picker</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      font-weight: 400;
+      line-height: 1.5;
+      background: #f7f7f7;
       margin: 0;
       padding: 20px;
-      background: #f7f7f7;
       text-align: center;
+      color: #333;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
     }
 
     .container {
       max-width: 800px;
       margin: auto;
+      position: relative;
+      flex-grow: 1;
     }
 
-    canvas {
-      border: 1px solid #ccc;
-      cursor: crosshair;
-      max-width: 100%;
-      height: auto;
+    #imageInput { display: none; }
+
+    label[for="imageInput"] {
+      background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+      color: white;
+      padding: 12px 28px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      border-radius: 25px;
+      cursor: pointer;
+      box-shadow: 0 5px 15px rgba(0, 242, 254, 0.4);
+      transition: all 0.3s ease;
+      user-select: none;
+      display: inline-block;
+      margin: 1rem auto 0.5rem;
+      font-family: inherit;
+      text-align: center;
+    }
+    label[for="imageInput"]:hover {
+      box-shadow: 0 8px 20px rgba(0, 242, 254, 0.7);
+      transform: translateY(-3px);
     }
 
     #magnifier {
-      position: absolute;
-      border: 2px solid #000;
+      margin: 0 auto 15px;
       width: 100px;
       height: 100px;
-      border-radius: 50%;
+      border: none;
+      border-radius: 0;
       overflow: hidden;
       pointer-events: none;
-      display: none;
-      box-shadow: 0 0 5px rgba(0,0,0,0.3);
-      z-index: 10;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: cover;
+    }
+
+    #canvasWrapper {
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      max-width: 100%;
+      width: 720px;
+      height: auto;
+      padding: 15px;
+      display: inline-block;
+      position: relative;
+    }
+
+    #imageCanvas {
+      cursor: crosshair;
+      border-radius: 8px;
+      max-width: 100%;
+      display: block;
     }
 
     #colorInfo {
@@ -44,45 +89,91 @@
       display: flex;
       justify-content: center;
       gap: 40px;
+      font-family: inherit;
     }
 
     .colorBox {
       cursor: pointer;
       padding: 10px 15px;
       border: 1px solid #ccc;
-      background-color: #fff;
+      background: #fff;
       border-radius: 5px;
       display: flex;
       align-items: center;
       gap: 10px;
+      box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
+      user-select: none;
+      font-family: inherit;
+      color: #333;
+    }
+
+    .colorBox span {
+      font-weight: 600;
+      letter-spacing: 0.05em;
     }
 
     .colorSample {
-      width: 20px;
-      height: 20px;
+      width: 24px;
+      height: 24px;
       border: 1px solid #000;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+
+    .copyButton {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #00f2fe;
+      font-size: 1.2rem;
+      padding: 0;
+      margin-left: 5px;
+      transition: color 0.2s ease;
+      font-family: inherit;
+    }
+    .copyButton:hover {
+      color: #4facfe;
+    }
+
+    /* Footer style */
+    footer {
+      margin-top: 40px;
+      font-size: 0.9rem;
+      color: #666;
+      font-style: italic;
+      user-select: none;
     }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>Image Color Picker</h1>
+
+    <label for="imageInput">Choose your image</label>
     <input type="file" id="imageInput" accept="image/*" />
-    <div id="canvasWrapper" style="position:relative;">
+
+    <!-- Fixed magnifier below button and above image -->
+    <div id="magnifier"></div>
+
+    <div id="canvasWrapper">
       <canvas id="imageCanvas"></canvas>
-      <div id="magnifier"></div>
     </div>
+
     <div id="colorInfo">
-      <div class="colorBox" id="currentColorBox" title="Click to copy">
-        <div class="colorSample" id="currentColorSample"></div>
+      <div class="colorBox" id="currentColorBox" title="Click to copy current color">
+        <div id="currentColorSample" class="colorSample"></div>
         <span id="hexColor">#ffffff</span>
+        <button id="copyCurrentBtn" class="copyButton" aria-label="Copy current hex code">⎘</button>
       </div>
-      <div class="colorBox" id="selectedColorBox" title="Selected Color (Click to copy)">
-        <div class="colorSample" id="selectedColorSample"></div>
+      <div class="colorBox" id="selectedColorBox" title="Click to copy selected color">
+        <div id="selectedColorSample" class="colorSample"></div>
         <span id="selectedHexColor">#ffffff</span>
+        <button id="copySelectedBtn" class="copyButton" aria-label="Copy selected hex code">⎘</button>
       </div>
     </div>
   </div>
+
+  <footer>made with love kowshik #CodeWithKowshik</footer>
 
   <script>
     const imageInput = document.getElementById("imageInput");
@@ -93,27 +184,30 @@
     const selectedHexColor = document.getElementById("selectedHexColor");
     const currentColorSample = document.getElementById("currentColorSample");
     const selectedColorSample = document.getElementById("selectedColorSample");
-    const currentColorBox = document.getElementById("currentColorBox");
-    const selectedColorBox = document.getElementById("selectedColorBox");
+    const copyCurrentBtn = document.getElementById("copyCurrentBtn");
+    const copySelectedBtn = document.getElementById("copySelectedBtn");
 
     let img = new Image();
 
-    imageInput.addEventListener("change", (event) => {
-      const file = event.target.files[0];
+    // Load image and draw on canvas
+    imageInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
       if (!file) return;
-
       const reader = new FileReader();
       reader.onload = (e) => {
         img.onload = () => {
           imageCanvas.width = img.width;
           imageCanvas.height = img.height;
           ctx.drawImage(img, 0, 0);
+          // Clear magnifier background on new image load
+          magnifier.style.background = "";
         };
         img.src = e.target.result;
       };
       reader.readAsDataURL(file);
     });
 
+    // Update magnifier on mouse move over canvas
     imageCanvas.addEventListener("mousemove", (e) => {
       const rect = imageCanvas.getBoundingClientRect();
       const scaleX = imageCanvas.width / rect.width;
@@ -121,39 +215,42 @@
       const x = Math.floor((e.clientX - rect.left) * scaleX);
       const y = Math.floor((e.clientY - rect.top) * scaleY);
 
+      if (x < 0 || y < 0 || x >= imageCanvas.width || y >= imageCanvas.height) {
+        // If outside canvas bounds, don't update magnifier
+        return;
+      }
+
       const pixel = ctx.getImageData(x, y, 1, 1).data;
       const hex = rgbToHex(pixel[0], pixel[1], pixel[2]);
       hexColor.textContent = hex;
       currentColorSample.style.backgroundColor = hex;
 
-      magnifier.style.left = e.pageX - 50 + "px";
-      magnifier.style.top = e.pageY - 50 + "px";
-      magnifier.style.display = "block";
-
       drawMagnifier(x, y);
     });
 
+    // Select color on canvas click
     imageCanvas.addEventListener("click", () => {
       selectedHexColor.textContent = hexColor.textContent;
       selectedColorSample.style.backgroundColor = hexColor.textContent;
     });
 
-    imageCanvas.addEventListener("mouseleave", () => {
-      magnifier.style.display = "none";
-    });
-
-    currentColorBox.addEventListener("click", () => copyToClipboard(hexColor.textContent));
-    selectedColorBox.addEventListener("click", () => copyToClipboard(selectedHexColor.textContent));
+    copyCurrentBtn.addEventListener("click", () => copyToClipboard(hexColor.textContent));
+    copySelectedBtn.addEventListener("click", () => copyToClipboard(selectedHexColor.textContent));
 
     function drawMagnifier(x, y) {
-      const zoom = 6;
-      const size = 25;
+      const size = 25; // Area size to magnify
+      const magSize = 100; // magnifier size in px
+
+      // Create an offscreen canvas to draw the zoomed area
       const magnifierCanvas = document.createElement("canvas");
-      magnifierCanvas.width = 100;
-      magnifierCanvas.height = 100;
+      magnifierCanvas.width = magSize;
+      magnifierCanvas.height = magSize;
       const mCtx = magnifierCanvas.getContext("2d");
 
       mCtx.imageSmoothingEnabled = false;
+      mCtx.clearRect(0, 0, magSize, magSize);
+
+      // Draw zoomed part from main canvas to magnifier canvas
       mCtx.drawImage(
         imageCanvas,
         x - size / 2,
@@ -162,61 +259,39 @@
         size,
         0,
         0,
-        100,
-        100
+        magSize,
+        magSize
       );
 
+      // Draw crosshair in center
       mCtx.beginPath();
       mCtx.strokeStyle = "red";
       mCtx.lineWidth = 1;
-      mCtx.moveTo(50, 45);
-      mCtx.lineTo(50, 55);
-      mCtx.moveTo(45, 50);
-      mCtx.lineTo(55, 50);
+      mCtx.moveTo(magSize / 2, magSize / 2 - 5);
+      mCtx.lineTo(magSize / 2, magSize / 2 + 5);
+      mCtx.moveTo(magSize / 2 - 5, magSize / 2);
+      mCtx.lineTo(magSize / 2 + 5, magSize / 2);
       mCtx.stroke();
 
-      magnifier.style.background = `url(${magnifierCanvas.toDataURL()})`;
-      magnifier.style.backgroundSize = "100px 100px";
+      // Set magnifier background to the zoomed image
+      magnifier.style.background = `url(${magnifierCanvas.toDataURL()}) no-repeat center / ${magSize}px ${magSize}px`;
     }
 
     function rgbToHex(r, g, b) {
-      return (
-        "#" +
-        [r, g, b]
-          .map((x) => {
-            const hex = x.toString(16);
-            return hex.length === 1 ? "0" + hex : hex;
-          })
-          .join("")
-      );
+      return "#" + [r, g, b].map(x => x.toString(16).padStart(2, "0")).join("");
     }
 
-    function copyToClipboard(text) {
-      navigator.clipboard.writeText(text).then(() => {
-        const toast = document.createElement("div");
-        toast.textContent = `Copied ${text} to clipboard!`;
-        toast.style.position = "fixed";
-        toast.style.bottom = "20px";
-        toast.style.left = "50%";
-        toast.style.transform = "translateX(-50%)";
-        toast.style.backgroundColor = "#333";
-        toast.style.color = "#fff";
-        toast.style.padding = "10px 20px";
-        toast.style.borderRadius = "5px";
-        toast.style.zIndex = "1000";
-        toast.style.opacity = "0";
-        toast.style.transition = "opacity 0.3s ease";
-
-        document.body.appendChild(toast);
-        requestAnimationFrame(() => {
-          toast.style.opacity = "1";
-        });
-
-        setTimeout(() => {
-          toast.style.opacity = "0";
-          setTimeout(() => document.body.removeChild(toast), 300);
-        }, 1500);
-      });
+    async function copyToClipboard(text) {
+      if (!navigator.clipboard) {
+        alert("Clipboard API not supported");
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(text);
+        alert(`Copied ${text} to clipboard!`);
+      } catch (err) {
+        alert("Failed to copy: " + err);
+      }
     }
   </script>
 </body>
